@@ -11,6 +11,23 @@ class TEMP(WS_STREAMS):
     def __init__(self):
         super().__init__()
 
+    async def handle_close_signals(self, close_func):        
+        is_any_close_pos = False
+        for i, symbol_item in enumerate(self.signals_data_list):
+            is_any_close_pos = self.signals_data_list[i]["is_close_pos_humanly"] = close_func(symbol_item)
+        if is_any_close_pos:
+            async with aiohttp.ClientSession() as session:
+                is_any_close_pos = False
+                pos_number = 1
+                is_first_init = False             
+                self.signals_data_list = await self.make_orders_template(session, self.signals_data_list, pos_number, is_first_init)
+
+    async def hadge_engin_1(self):
+        if self.is_get_new_signal:
+            self.is_get_new_signal = False
+            await self.handle_close_signals(self.is_close_1_pos_by_signal)
+        await self.handle_close_signals(self.close_1_pos_by_price)
+
     async def trade_setup_template(self, session, symbol, lev_size):
         try:
             self.handle_messagee(f'Устанавливаем тип маржи для {symbol}:')
@@ -23,55 +40,8 @@ class TEMP(WS_STREAMS):
             
         except Exception as ex:
             self.handle_exception(f"{ex} {inspect.currentframe().f_lineno}")
-            
-    async def make_orders_template(self, session, signals_answ_list, pos_number, fitst_init):
-        try:
-            tasks1 = []
-            tasks2 = []
-            make_order_results = []
-            signals_answ_list_copy = signals_answ_list.copy()
-            
-            # Определение размера плеча и депозита в зависимости от позиции
-            lev_size = self.lev_size_1
-            depo = self.depo_1
-
-            for symbol_item in signals_answ_list_copy:
-                # Обработка сигнала для открытия позиции 1, если требуется             
-                # symbol_item = self.open_1_pos_signal_handler(symbol_item) 
-                if fitst_init:              
-                    tasks1.append(self.trade_setup_template(session, symbol_item["symbol"], lev_size))
-
-                # Определение цены для ордера
-                pricee = symbol_item[f"cur_price"]
-
-                # Вычисление количества на основе депозита и цены
-                symbol_item["quantity_precision"], _, _ , symbol_item["min_notional"] = self.get_precisions(symbol_item["symbol"], self.exchange_data)
-                print(symbol_item["quantity_precision"], symbol_item["min_notional"])
-                  
-                symbol_item[f"qty_{pos_number}"] = self.usdt_to_qnt_converter(depo, pricee, symbol_item["quantity_precision"], symbol_item["min_notional"])
-                # print(symbol_item[f"qty_1"])
-
-                # Добавление задачи на создание ордера
-                pos_averaging_true = False
-                position_side = symbol_item[f"position_{pos_number}_side"]
-                tasks2.append(self.make_order(session, symbol_item["symbol"], symbol_item[f"qty_{pos_number}"], symbol_item[f"side_{pos_number}"], 'MARKET', position_side, pos_averaging_true))
-
-            if fitst_init:
-                await asyncio.gather(*tasks1)
-                make_order_results = await asyncio.gather(*tasks2)
-
-            # Обработка результатов ордеров
-            if make_order_results:
-                signals_answ_list_copy = self.process_order_results(make_order_results, signals_answ_list_copy, pos_number)
-            else:
-                self.handle_messagee("make_order_results == []")
-
-        except Exception as ex:
-            self.handle_exception(f"{ex} {inspect.currentframe().f_lineno}")
-
-        return signals_answ_list_copy
     
-    def response_order_logger(self, order_answer): 
+    def orders_logger_hundler(self, order_answer): 
         if order_answer is not None:
             specific_key_list = ["orderId", "symbol", "positionSide", "side", "executedQty", "avgPrice"]
             order_answer_str = ""
@@ -95,11 +65,71 @@ class TEMP(WS_STREAMS):
         self.handle_messagee(error_message)
                        
         return False
+            
+    async def make_orders_template(self, session, signals_answ_list, pos_number, fitst_init):
+        try:
+            tasks1 = []
+            tasks2 = []
+            make_order_results = []
+            signals_answ_list_copy = signals_answ_list.copy()
+            
+            # Определение размера плеча и депозита в зависимости от позиции
+            lev_size = self.lev_size_1 if pos_number == 1 else self.lev_size_2
+            depo = self.depo_1 if pos_number == 1 else self.depo_2
+
+            for symbol_item in signals_answ_list_copy:
+                if fitst_init:              
+                    tasks1.append(self.trade_setup_template(session, symbol_item["symbol"], lev_size))
+
+                    # Определение цены для ордера
+                    pricee = symbol_item[f"cur_price"]
+
+                    # Вычисление количества на основе депозита и цены
+                    symbol_item["quantity_precision"], _, _ , symbol_item["min_notional"] = self.get_precisions(symbol_item["symbol"], self.exchange_data)
+                    print(symbol_item["quantity_precision"], symbol_item["min_notional"])
+                    
+                    symbol_item["qty_1"] = symbol_item["qty_2"] = self.usdt_to_qnt_converter(depo, pricee, symbol_item["quantity_precision"], symbol_item["min_notional"])
+                    # print(symbol_item[f"qty_1"])
+                    is_close_pos = False
+                    pos_averaging_true = False
+                else:
+                    is_close_pos = symbol_item.get("is_close_pos_humanly")
+                    pos_averaging_true = symbol_item.get("pos_averaging_true")
+                
+                position_side = symbol_item[f"position_{pos_number}_side"]
+                if is_close_pos:
+                    if position_side == "LONG":
+                        side = "SELL"
+                    elif position_side == "SHORT":
+                        side = "BUY"
+                else:
+                    if position_side == "LONG":
+                        side = "BUY"
+                    elif position_side == "SHORT":
+                        side = "SELL"
+
+                # Добавление задачи на создание ордера
+                tasks2.append(self.make_order(session, symbol_item["symbol"], symbol_item[f"qty_{pos_number}"], side, 'MARKET', position_side, pos_averaging_true))
+
+            if fitst_init:
+                await asyncio.gather(*tasks1)
+                make_order_results = await asyncio.gather(*tasks2)
+
+            # Обработка результатов ордеров
+            if make_order_results:
+                signals_answ_list_copy = self.process_order_results(make_order_results, signals_answ_list_copy, pos_number)
+            else:
+                self.handle_messagee("make_order_results == []")
+
+        except Exception as ex:
+            self.handle_exception(f"{ex} {inspect.currentframe().f_lineno}")
+
+        return signals_answ_list_copy
 
     def process_order_results(self, make_order_results, signals_answ_list_copy, pos_number):
         for item_res in make_order_results:
             if item_res:
-                order_logger_resp = self.response_order_logger(item_res)
+                order_logger_resp = self.orders_logger_hundler(item_res)
                 if order_logger_resp:
                     signals_answ_list_copy = self.update_position_status(signals_answ_list_copy, item_res, pos_number)
         return signals_answ_list_copy
@@ -107,9 +137,11 @@ class TEMP(WS_STREAMS):
     def update_position_status(self, signals_answ_list_copy, item_res, pos_number):
         for i, symbol_item in enumerate(signals_answ_list_copy):
             if symbol_item["symbol"] == item_res["symbol"]:
-                signals_answ_list_copy[i][f"in_position_{pos_number}"] = True
-                signals_answ_list_copy[i]["signal"] = None
-                signals_answ_list_copy[f"enter_{pos_number}_pos_price"] = item_res.get("avgPrice", None)       
+                is_close = symbol_item.get("is_close_pos_humanly")
+                signals_answ_list_copy[i][f"in_position_{pos_number}"] = not is_close
+                signals_answ_list_copy[i][f"is_closed_{pos_number}"] = is_close                
+                signals_answ_list_copy[i][f"enter_{pos_number}_pos_price"] = item_res.get("avgPrice", None)
+                signals_answ_list_copy[i]["signal"] = None      
                 break
         return signals_answ_list_copy
 
@@ -176,37 +208,40 @@ class MAIN(WaitCandleLogic):
                 async with aiohttp.ClientSession() as session:
                     await asyncio.sleep(0.5)                     
                     await self.wait_for_candle_or_coins(session)                  
-                    recent_klines_dict = {}
-                    trends_dict = {}
-                    tasks = [self.fetch_and_process_symbol(session, symbol, recent_klines_dict, trends_dict) for symbol in self.candidate_symbols_list]
+                    recent_klines_dict = {}                 
+                    tasks = [self.fetch_and_process_symbol(session, symbol, recent_klines_dict) for symbol in self.candidate_symbols_list]
                     await asyncio.gather(*tasks)        
 
                     if self.signals_data_list:
                         next_trading_cycle = False
                         wb_task_true = True
                         self.signals_data_list = self.signals_data_list[:self.diversification_number]                                       
-                        [self.time_signal_info(item["signal"], item["symbol"], item["cur_price"]) for item in self.signals_data_list]       
-                        self.signals_data_list = await self.make_orders_template(session, self.signals_data_list, 1, True) 
+                        [self.time_signal_info(item["signal"], item["symbol"], item["cur_price"]) for item in self.signals_data_list]
+                        pos_number = 1
+                        is_first_init = True       
+                        self.signals_data_list = await self.make_orders_template(session, self.signals_data_list, pos_number, is_first_init)
                         print(self.signals_data_list)            
                     else:
                         continue
 
             if wb_task_true:
                 wb_task_true = False
-                wb_task = [self.connect_to_websocket(self.signals_data_list, recent_klines_dict, trends_dict)]
+                symbols = [x.get("symbol") for x in self.signals_data_list]
+                wb_task = [self.connect_to_websocket(symbols, recent_klines_dict)]
                 wb_comleted_task = asyncio.gather(*wb_task)
             
             print("tik")
             await asyncio.sleep(10)   
 
-            async with self.lock:
-                if self.is_get_new_signal:
-                    print("New signal detected")
-                    self.is_get_new_signal = False
+            async with self.lock:                
+                await self.hadge_engin_1()
 
             if wb_comleted_task and wb_comleted_task.done():
                 next_trading_cycle = wb_comleted_task.result()
+                print("конец первой торговой итерации")
 
 # Run the main function
 if __name__ == "__main__":
     asyncio.run(MAIN().main_engin())
+
+

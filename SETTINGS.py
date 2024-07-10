@@ -12,7 +12,7 @@ class SETTINGSS():
         self.hedge_mode = True # флаг режима хеджирования. False -- моно
         self.automatic_coin_search_mode = True # искать монеты автоматически/ввести в ручную -- True/False
         self.custom_symbol_list = ["DOGEUSDT"] # кастомный список монет для торговли. Для self.automatic_coin_search_mode = False
-        self.diversification_number = 1 # количество торговых пар торгующихся одновременно
+        self.diversification_number = 2 # количество торговых пар торгующихся одновременно
 
         # //////////////////////////// НАСТРОЙКИ ФИЛЬТРА МОНЕТ:
         self.default_black_coins_list = self.black_coins_list = ['USDCUSDT','FDUSDUSDT','BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'LTCUSDT'] # монеты исключения
@@ -47,7 +47,7 @@ class SETTINGSS():
         self.position_1_averaging_counter_limit = 3 # до скольки раз усреднять позицию
         self.averaging_step_rate = 1 # % -- размер шага для усреднения в процентах
         self.min_deviation_rate_for_1_position_closing = 0.4 # минимальный зазор для закрыти первой позиции по сигналу
-        self.sl_1_pos_rate, self.tp_1_pos_rate = 4, 2 # % -- стоп лосс и тейк профит для 1 позиции в процентах
+        self.sl_1_pos_rate, self.tp_1_pos_rate = 0.4, 0.3 # % -- стоп лосс и тейк профит для 1 позиции в процентах
         # self.sl_1_pos_rate, self.tp_1_pos_rate = self.averaging_step_rate* (self.position_1_averaging_counter_limit + 1), 2 # % -- стоп лосс и тейк профит для 1 позиции в процентах
         self.comulative_sl_rate, self.comulative_tp_rate = 2, 4 # % -- стоп лосс и тейк профит для обоих позициий в процентах
 

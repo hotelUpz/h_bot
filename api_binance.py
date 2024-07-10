@@ -11,7 +11,6 @@ current_file = os.path.basename(__file__)
 class BINANCE_API(Total_Logger):
     def __init__(self):
         super().__init__()       
-        # BASE_URL = "https://fapi.binance.com"   
         self.create_order_url = self.cancel_order_url = 'https://fapi.binance.com/fapi/v1/order'
         self.change_trade_mode = 'https://fapi.binance.com/fapi/v1/positionSide/dual'
         self.exchangeInfo_url = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
