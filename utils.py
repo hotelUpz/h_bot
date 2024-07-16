@@ -51,19 +51,13 @@ class UTILS(COInN_FILTERR):
 
         quantity_precision = int(float(symbol_data['quantityPrecision']))
         price_precision_market = int(float(symbol_data['pricePrecision']))
-
-        price_precision_limit = price_precision_market 
-        for filter_data in symbol_data['filters']:
-            if filter_data['filterType'] == 'PRICE_FILTER':
-                price_precision_limit = float(filter_data.get('tickSize', 1.0))
-                price_precision_limit = self.count_decimal_places(price_precision_limit)
         min_notional = float(next((f['notional'] for f in symbol_data['filters'] if f['filterType'] == 'MIN_NOTIONAL'), 0))       
 
-        return quantity_precision, price_precision_market, price_precision_limit, min_notional
+        return quantity_precision, price_precision_market, min_notional
 
-    def usdt_to_qnt_converter(self, depo, cur_price, quantity_precision, min_notional):
+    def usdt_to_qnt_converter(self, cur_price, quantity_precision, min_notional):
         quantity = 0
-        if depo <= min_notional:
-            depo = min_notional
-        quantity = round(depo / cur_price, quantity_precision)
+        if self.depo <= min_notional:
+            self.depo = min_notional
+        quantity = round(self.depo / cur_price, quantity_precision)
         return quantity

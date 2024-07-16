@@ -1,8 +1,8 @@
-import talib
+# import talib
+import numpy as np
 from random import choice
 from datetime import datetime as dttm
-import aiohttp
-from api_binance import BINANCE_API
+from api_binance import BINANCE_API, aiohttp_connector
 import math
 from typing import List, Tuple
 import os
@@ -15,10 +15,21 @@ class INDICATORS_STRATEGYY(BINANCE_API):
         # устанавливаем функциии декораторы
         self.find_last_ema_cross = self.log_exceptions_decorator(self.find_last_ema_cross)
 
+    def calculate_ema_(self, close_prices, period):
+        ema = np.zeros_like(close_prices)
+        alpha = 2 / (period + 1)
+        ema[0] = close_prices[0]  # Use the first value as the starting EMA value
+        for i in range(1, len(close_prices)):
+            ema[i] = alpha * close_prices[i] + (1 - alpha) * ema[i-1]
+        return ema
+
     async def find_last_ema_cross(self, prices):
         # await asyncio.sleep(0.05)
-        ema_short = talib.EMA(prices, timeperiod=self.ema1_period)
-        ema_long = talib.EMA(prices, timeperiod=self.ema2_period)
+        # ema_short = talib.EMA(prices, timeperiod=self.ema1_period)
+        # ema_long = talib.EMA(prices, timeperiod=self.ema2_period)
+
+        ema_short = self.calculate_ema_(prices, self.ema1_period)
+        ema_long = self.calculate_ema_(prices, self.ema2_period)
 
         # Проверяем последние два значения EMA
         current_short_ema = ema_short[-1]
@@ -51,7 +62,8 @@ class COInN_FILTERR(INDICATORS_STRATEGYY):
         self.go_filter = self.log_exceptions_decorator(self.go_filter)
         self.get_top_coins_template = self.log_exceptions_decorator(self.get_top_coins_template)
 
-    async def top_coins_engin(self, limit: int) -> List[dict]:
+    @aiohttp_connector
+    async def top_coins_engin(self, session, limit: int) -> List[dict]:
         url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
         headers = {
             'Accepts': 'application/json',
@@ -63,12 +75,11 @@ class COInN_FILTERR(INDICATORS_STRATEGYY):
             'convert': 'USD',
         }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get('data', [])
-                return []
+        async with session.get(url, headers=headers, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
+                return data.get('data', [])
+            return []
 
     async def coin_market_cup_top(self, limit: int) -> List[str]:
         top_coins_total_list = []
@@ -156,7 +167,7 @@ class COInN_FILTERR(INDICATORS_STRATEGYY):
         coinsMarket_tickers = await self.coin_market_cup_top(self.TOP_MARKET_CUP) if self.in_coinMarketCup_is else []
 
         # Фильтрация тикеров
-        total_coin_list, coin_list_by_volume, coin_list_by_positive_price, coin_list_by_negative_price = await self.go_filter(all_binance_tickers, coinsMarket_tickers)
+        total_coin_list, _, coin_list_by_positive_price, coin_list_by_negative_price = await self.go_filter(all_binance_tickers, coinsMarket_tickers)
         
         # Обработка флага рыночного тренда
         pos_len = len(coin_list_by_positive_price)
