@@ -6,11 +6,12 @@ from indicator_strategy import COInN_FILTERR
 class UTILS(COInN_FILTERR):
     def __init__(self):  
         super().__init__()
-        # устанавливаем функциии декораторы
         self.milliseconds_to_datetime = self.log_exceptions_decorator(self.milliseconds_to_datetime)
         self.time_calibrator = self.log_exceptions_decorator(self.time_calibrator)
+        self.count_decimal_places = self.log_exceptions_decorator(self.count_decimal_places)
+        self.get_precisions = self.log_exceptions_decorator(self.get_precisions)
         self.usdt_to_qnt_converter = self.log_exceptions_decorator(self.usdt_to_qnt_converter)
-        
+                        
     def milliseconds_to_datetime(self, milliseconds):
         seconds, milliseconds = divmod(milliseconds, 1000)
         time = dttm.utcfromtimestamp(seconds)
@@ -57,7 +58,9 @@ class UTILS(COInN_FILTERR):
 
     def usdt_to_qnt_converter(self, cur_price, quantity_precision, min_notional):
         quantity = 0
-        if self.depo <= min_notional:
-            self.depo = min_notional
-        quantity = round(self.depo / cur_price, quantity_precision)
+        depo = self.depo  # Используем оригинальный депозит
+        if depo <= min_notional:
+            depo = min_notional  # Используем минимальный нотионал если депозит меньше его
+        quantity = round(depo / cur_price, quantity_precision)
         return quantity
+

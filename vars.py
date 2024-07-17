@@ -21,6 +21,7 @@ class VARIABLES(SEC_SETTINGSS):
     def init_and_reset_data(self):
         self.candidate_symbols_list = []
         self.exchange_data = []
+        self.trading_data_init_list = []
         self.trading_data_list = []
         self.next_trading_cycle = True
         self.interval = str(self.kline_time) + self.time_frame   
@@ -37,5 +38,7 @@ class VARIABLES(SEC_SETTINGSS):
         self.check_finish_flag = False
         self.check_finish_tik_counter = 0
         self.strategy_engin_tik_counter = 0
+        self.minute_counter = 0
+        self.any_moving = False
         self.lock = asyncio.Lock()
         self.next_trading_cycle_event = asyncio.Event()

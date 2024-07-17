@@ -44,6 +44,14 @@ class BINANCE_API(Total_Logger):
         #     }
         # else:
         #     self.proxies = None
+        self.get_exchange_info = self.log_exceptions_decorator(self.get_exchange_info)
+        self.get_all_tickers = self.log_exceptions_decorator(self.get_all_tickers)
+        self.get_klines = self.log_exceptions_decorator(self.get_klines)
+        self.is_closing_position_true = self.log_exceptions_decorator(self.is_closing_position_true)
+        self.set_hedge_mode = self.log_exceptions_decorator(self.set_hedge_mode)
+        self.set_margin_type = self.log_exceptions_decorator(self.set_margin_type)
+        self.set_leverage = self.log_exceptions_decorator(self.set_leverage)
+        self.make_order = self.log_exceptions_decorator(self.make_order)
 
     def get_signature(self, params):
         params['timestamp'] = int(time.time() * 1000)

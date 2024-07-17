@@ -10,6 +10,18 @@ current_file = os.path.basename(__file__)
 class TEMP(WS_STREAMS):
     def __init__(self):
         super().__init__()
+        self.trade_setup_template = self.log_exceptions_decorator(self.trade_setup_template)
+        self.is_closing_positions_template = self.log_exceptions_decorator(self.is_closing_positions_template)
+        self.make_orders_template = self.log_exceptions_decorator(self.make_orders_template)
+        self.make_orders_total_template = self.log_exceptions_decorator(self.make_orders_total_template)
+        self.process_order_results = self.log_exceptions_decorator(self.process_order_results)
+        self.update_position_status = self.log_exceptions_decorator(self.update_position_status)
+        self.is_finish_trade_cycle_true = self.log_exceptions_decorator(self.is_finish_trade_cycle_true)
+        self.orders_logger_hundler = self.log_exceptions_decorator(self.orders_logger_hundler)
+        self.get_side = self.log_exceptions_decorator(self.get_side)
+        self.should_open_position = self.log_exceptions_decorator(self.should_open_position)
+        self.should_close_position = self.log_exceptions_decorator(self.should_close_position)
+        
 
     async def trade_setup_template(self, session, lev_size):
         async def trade_setup_unit(session, symbol, lev_size):
@@ -106,8 +118,9 @@ class TEMP(WS_STREAMS):
         exception_list = []
         for pos_number in [1,2]:
             if any(symbol_item.get(f"is_opening_{pos_number}_pos") or symbol_item.get(f"is_closing_{pos_number}_pos") for symbol_item in self.trading_data_list):
-                try:        
-                    await self.trade_setup_template(session, self.lev_size)
+                try:
+                    if any(symbol_item.get("first_trade") for symbol_item in self.trading_data_list):      
+                        await self.trade_setup_template(session, self.lev_size)
                     exception_list = await self.is_closing_positions_template(session, pos_number)
                     print(f"exception_list: {exception_list}")
                     make_order_results = await self.make_orders_template(session, pos_number, exception_list)
@@ -120,27 +133,29 @@ class TEMP(WS_STREAMS):
         for item_res in make_order_results:
             if item_res:
                 order_logger_resp = self.orders_logger_hundler(item_res)
-                if order_logger_resp:
+                if order_logger_resp:                   
                     self.update_position_status(item_res, pos_number)
 
     def update_position_status(self, item_res, pos_number):
         for i, symbol_item in enumerate(self.trading_data_list):
             if symbol_item["symbol"] == item_res["symbol"]:
+                print("update_position_status")
                 self.trading_data_list[i][f"in_position_{pos_number}"] = not symbol_item.get(f"is_closing_{pos_number}_pos") 
                 self.trading_data_list[i][f"is_opening_{pos_number}_pos"] = False
                 self.trading_data_list[i][f"is_closing_{pos_number}_pos"] = False                      
-                self.trading_data_list[i][f"enter_{pos_number}_pos_price"] = item_res.get("avgPrice", None)
-                self.trading_data_list[i]["qty"] = item_res.get("executedQty", None)
+                self.trading_data_list[i][f"enter_{pos_number}_pos_price"] = float(item_res.get("avgPrice", None))
+                self.trading_data_list[i]["qty"] = float(item_res.get("executedQty", None))
                 self.trading_data_list[i]["signal"] = None      
                 break
 
     @aiohttp_connector
     async def is_finish_trade_cycle_true(self, session):
-        print("Проверка завершения торгового цикла")
+        # print("Проверка завершения торгового цикла")
+        self.trading_data_list = [symbol_item for symbol_item in self.trading_data_list if symbol_item.get("in_position_1") or symbol_item.get("in_position_2")]
 
         # Проверка на закрытие всех позиций
-        if all((not x.get("in_position_1") and not x.get("in_position_2")) for x in self.trading_data_list):
-            print('Все позиции закрыты')
+        if len(self.trading_data_list) == 0:
+            print('Все позиции закрыты технически')
             return True
 
         not_active_symbol_list = []
@@ -153,7 +168,7 @@ class TEMP(WS_STREAMS):
 
         # Проверка длины списка неактивных символов
         if len(not_active_symbol_list) == len(self.trading_data_list) * 2:
-            print("Все позиции для всех символов закрыты")
+            print("Все позиции закрыты")
             return True
 
         # Обновление списка торговых данных
@@ -162,6 +177,8 @@ class TEMP(WS_STREAMS):
                 if item_list.get("symbol") == symb:
                     self.trading_data_list[i][f"in_position_{pos_n}"] = False
                     break
+
+        self.trading_data_list = [symbol_item for symbol_item in self.trading_data_list if symbol_item.get("in_position_1") or symbol_item.get("in_position_2")]
 
         return False
 
