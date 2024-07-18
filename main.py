@@ -1,6 +1,7 @@
 import asyncio
 from templates import TEMP
 from api_binance import aiohttp_connector
+import time
 import os
 import inspect
 current_file = os.path.basename(__file__)
@@ -46,25 +47,23 @@ class WaitCandleLogic(TEMP):
 
     def handle_signal_search_end(self, delta_time, signals_answ_list):
         self.handle_messagee(f"Поиск сигнала занял {delta_time} сек. Найдено {len(signals_answ_list)} сигнала(-ов)")
-
-class MAIN(WaitCandleLogic):
+    
+class TrigersHundler(WaitCandleLogic):
     def __init__(self) -> None:
         super().__init__()
-        self.hedge_or_close_analizator = self.log_exceptions_decorator(self.hedge_or_close_analizator)
-        # self.main_engin = self.log_exceptions_decorator(self.main_engin)
-        self.execute_trading_cycle = self.log_exceptions_decorator(self.execute_trading_cycle)
+        self.hedge_or_close_analizator = self.log_exceptions_decorator(self.hedge_or_close_analizator)               
         self.close_pos_viewer = self.log_exceptions_decorator(self.close_pos_viewer)
         self.is_some_triger_viewer = self.log_exceptions_decorator(self.is_some_triger_viewer)
 
     async def close_pos_viewer(self):
         self.check_finish_tik_counter += 1
         
-        if self.check_finish_tik_counter == 10 or self.check_finish_flag:            
+        if self.check_finish_tik_counter == 10 or self.check_finish_flag:       
             self.check_finish_flag = False
             self.check_finish_tik_counter = 0
-            if (self.minute_counter == self.minute_counter_limit): 
-                any_closing_flag = False               
-                if not self.any_moving:
+            if self.minute_counter_limit is not None:               
+                if time.time() - self.start_time_2 >= self.minute_counter_limit: 
+                    any_closing_flag = False      
                     for i, symb_item in enumerate(self.trading_data_list):                        
                         if symb_item.get("in_position_1") and symb_item.get("in_position_2"):
                             any_closing_flag = True
@@ -74,21 +73,18 @@ class MAIN(WaitCandleLogic):
                         any_closing_flag = False
                         print("Закрываем все позиции по лимиту времени")
                         await self.make_orders_total_template()
-                self.any_moving = False
-                self.minute_counter = 0
             
             async with self.lock:
-                self.next_trading_cycle = await self.is_finish_trade_cycle_true()
+                finish_trade_cycle_true = False
+                finish_trade_cycle_true = await self.is_finish_trade_cycle_true()
             
-            if self.next_trading_cycle:
-                self.next_trading_cycle_event.set()
-                
+            if finish_trade_cycle_true:
+                self.next_trading_cycle_event.set()                
                 try:
                     await asyncio.wait_for(self.wb_completed_task, timeout=13)  # Устанавливаем таймаут на ожидание
                     print("Вебсокет соединение закрыто")
                 except asyncio.TimeoutError:
-                    print("Не удается закрыть вебсокет в течение заданного времени")
-                
+                    print("Не удается закрыть вебсокет в течение заданного времени")                
                 # self.next_trading_cycle_event.clear()  # Сбрасываем событие
                 self.init_and_reset_data()  # Инициализируем и сбрасываем данные
                 print("конец первой торговой итерации")
@@ -110,8 +106,7 @@ class MAIN(WaitCandleLogic):
                         is_any_opening = True
                         self.trading_data_list[i][f"is_opening_{pos_num}_pos"] = True
 
-        if is_any_close_pos or is_any_opening:
-            self.any_moving = True
+        if is_any_close_pos or is_any_opening:        
             await self.make_orders_total_template()           
             return True
         if self.is_get_new_signal:
@@ -124,21 +119,19 @@ class MAIN(WaitCandleLogic):
         self.strategy_engin_tik_counter += 1
         if self.strategy_engin_tik_counter == 2 or self.is_get_new_signal:
             self.strategy_engin_tik_counter = 0
-            async with self.lock: 
-                if self.is_get_new_signal:
-                    print("self.is_get_new_signal")             
+            async with self.lock:      
                 self.check_finish_flag = await self.hedge_or_close_analizator()
 
-    @aiohttp_connector
-    async def execute_trading_cycle(self, session):
-        self.trading_data_init_list = []
-        self.recent_klines_dict = {}
-        await self.wait_for_candle_or_coins(session)
-        tasks = [self.fetch_and_process_symbol(session, symbol, self.recent_klines_dict) for symbol in self.candidate_symbols_list]
-        await asyncio.gather(*tasks)
+class FirstInitExecutor(TrigersHundler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.signals_elaboration = self.log_exceptions_decorator(self.signals_elaboration)
+        self.signals_collector = self.log_exceptions_decorator(self.signals_collector)
+        self.first_trading_template = self.log_exceptions_decorator(self.first_trading_template)
 
+    async def signals_elaboration(self):
         if self.trading_data_init_list:
-            print(f"total_init_signal_counter: {len(self.trading_data_init_list)}")            
+            # print(f"total_init_signal_counter: {len(self.trading_data_init_list)}")            
             [self.time_signal_info(item["signal"], item["symbol"], item["cur_price"]) for item in self.trading_data_init_list]
 
             trading_data_acum_list = []
@@ -162,8 +155,25 @@ class MAIN(WaitCandleLogic):
                 return True
 
         return False
+    
+    @aiohttp_connector
+    async def signals_collector(self, session):
+        self.trading_data_init_list = []
+        # self.recent_klines_dict = {}
+        await self.wait_for_candle_or_coins(session)
+        tasks = [self.fetch_and_process_symbol(session, symbol, {}) for symbol in self.candidate_symbols_list]
+        await asyncio.gather(*tasks)
+        
+    async def first_trading_template(self):
+        await self.signals_collector()
+        return await self.signals_elaboration()
+       
+class MAIN(FirstInitExecutor):
+    def __init__(self) -> None:
+        super().__init__()
+         # self.main_engin = self.log_exceptions_decorator(self.main_engin)
 
-    async def main_engin(self):
+    async def main(self):
         self.handle_messagee("Устанавливаем режим хеджирования:")
         set_hedge_mode_answ = self.set_hedge_mode(self.hedge_mode)
         self.handle_messagee(str(set_hedge_mode_answ))
@@ -171,9 +181,11 @@ class MAIN(WaitCandleLogic):
         while True:
             if self.next_trading_cycle:
                 await asyncio.sleep(0.5)
-                if not await self.execute_trading_cycle():
+                if not await self.first_trading_template():
                     print("Продолжаем искать сигналы...")
+                    self.first_init_flag = True
                     continue
+                self.first_init_flag = False
                 self.next_trading_cycle = False
                 self.wb_task_true = True
                 print(self.trading_data_list)
@@ -181,16 +193,16 @@ class MAIN(WaitCandleLogic):
             if self.wb_task_true:
                 self.wb_task_true = False
                 symbols = [x.get("symbol") for x in self.trading_data_list]
-                self.recent_klines_dict = {k: v for k, v in self.recent_klines_dict.items() if k in symbols}
-                self.wb_task = [self.connect_to_websocket(symbols, self.recent_klines_dict)]
+                # self.recent_klines_dict = {k: v for k, v in self.recent_klines_dict.items() if k in symbols}             
+                self.wb_task = [self.connect_to_websocket(symbols)]
                 self.wb_completed_task = asyncio.gather(*self.wb_task)
             
             # print("tik")
             await asyncio.sleep(1)
-            if await self.close_pos_viewer():
-                continue
-
-            await self.is_some_triger_viewer()
+            self.next_trading_cycle = await self.close_pos_viewer()
+        
+            if not self.next_trading_cycle:
+                await self.is_some_triger_viewer()
 
 if __name__ == "__main__":
-    asyncio.run(MAIN().main_engin())
+    asyncio.run(MAIN().main())

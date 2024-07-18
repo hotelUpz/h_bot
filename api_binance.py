@@ -52,6 +52,7 @@ class BINANCE_API(Total_Logger):
         self.set_margin_type = self.log_exceptions_decorator(self.set_margin_type)
         self.set_leverage = self.log_exceptions_decorator(self.set_leverage)
         self.make_order = self.log_exceptions_decorator(self.make_order)
+        self.get_close_prices = self.log_exceptions_decorator(self.get_close_prices)
 
     def get_signature(self, params):
         params['timestamp'] = int(time.time() * 1000)
@@ -89,7 +90,12 @@ class BINANCE_API(Total_Logger):
                 float(entry[4]),  # Close
                 float(entry[5])  # Volume
             ] for entry in data])
-            
+
+    @aiohttp_connector
+    async def get_close_prices(self, session, symbol, interval, limit):
+        klines = await self.get_klines(session, symbol, interval, limit)
+        return np.array([float(kline[4]) for kline in klines], dtype=np.float64)
+              
     async def is_closing_position_true(self, session, symbol, position_side):
         params = {
             "symbol": symbol,

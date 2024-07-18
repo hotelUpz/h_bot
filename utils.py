@@ -1,5 +1,5 @@
 import time
-from datetime import datetime as dttm, time as timm, timedelta as tmdl
+from datetime import datetime as dttm
 import math
 from indicator_strategy import COInN_FILTERR
 
@@ -15,8 +15,6 @@ class UTILS(COInN_FILTERR):
     def milliseconds_to_datetime(self, milliseconds):
         seconds, milliseconds = divmod(milliseconds, 1000)
         time = dttm.utcfromtimestamp(seconds)
-        # milliseconds_str = str(milliseconds).zfill(3)
-        # return time.strftime('%Y-%m-%d %H:%M:%S') + '.' + milliseconds_str
         return time.strftime('%Y-%m-%d %H:%M:%S')
     
     def time_calibrator(self, kline_time, time_frame):
@@ -36,11 +34,8 @@ class UTILS(COInN_FILTERR):
 
     def count_decimal_places(self, number):
         if isinstance(number, (int, float)):
-            # Преобразуем число в строку
             number_str = f'{number:.10f}'.rstrip('0')
-            # Проверяем наличие десятичной точки
             if '.' in number_str:
-                # Возвращаем количество знаков после запятой
                 return len(number_str.split('.')[1])
         return 0  
     

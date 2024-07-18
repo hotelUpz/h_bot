@@ -122,7 +122,7 @@ class TEMP(WS_STREAMS):
                     if any(symbol_item.get("first_trade") for symbol_item in self.trading_data_list):      
                         await self.trade_setup_template(session, self.lev_size)
                     exception_list = await self.is_closing_positions_template(session, pos_number)
-                    print(f"exception_list: {exception_list}")
+                    # print(f"exception_list: {exception_list}")
                     make_order_results = await self.make_orders_template(session, pos_number, exception_list)
                     if make_order_results:
                         self.process_order_results(make_order_results, pos_number)
@@ -139,7 +139,7 @@ class TEMP(WS_STREAMS):
     def update_position_status(self, item_res, pos_number):
         for i, symbol_item in enumerate(self.trading_data_list):
             if symbol_item["symbol"] == item_res["symbol"]:
-                print("update_position_status")
+                # print("update_position_status")
                 self.trading_data_list[i][f"in_position_{pos_number}"] = not symbol_item.get(f"is_closing_{pos_number}_pos") 
                 self.trading_data_list[i][f"is_opening_{pos_number}_pos"] = False
                 self.trading_data_list[i][f"is_closing_{pos_number}_pos"] = False                      

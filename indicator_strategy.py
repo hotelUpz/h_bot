@@ -1,5 +1,5 @@
 import talib
-# import numpy as np
+import numpy as np
 from random import choice
 from datetime import datetime as dttm
 from api_binance import BINANCE_API, aiohttp_connector
@@ -13,24 +13,25 @@ class INDICATORS_STRATEGYY(BINANCE_API):
     def __init__(self) -> None:
         super().__init__()  
         # устанавливаем функциии декораторы
+        self.calculate_ema = self.log_exceptions_decorator(self.calculate_ema)
         self.find_last_ema_cross = self.log_exceptions_decorator(self.find_last_ema_cross)
         self.time_signal_info = self.log_exceptions_decorator(self.time_signal_info)
-
-    # def calculate_ema_(self, close_prices, period):
-    #     ema = np.zeros_like(close_prices)
-    #     alpha = 2 / (period + 1)
-    #     ema[0] = close_prices[0]  # Use the first value as the starting EMA value
-    #     for i in range(1, len(close_prices)):
-    #         ema[i] = alpha * close_prices[i] + (1 - alpha) * ema[i-1]
-    #     return ema
+        
+    def calculate_ema(self, close_prices, period):
+        if self.ema_calculating_mode == 1:
+            return talib.EMA(close_prices, timeperiod=period) 
+        else:
+            ema = np.zeros_like(close_prices)
+            alpha = self.ema_weighting_rate / (period + 1)
+            ema[0] = close_prices[0]
+            for i in range(1, len(close_prices)):
+                ema[i] = alpha * close_prices[i] + (1 - alpha) * ema[i-1]
+        return ema
 
     async def find_last_ema_cross(self, prices):
-        # await asyncio.sleep(0.05)
-        ema_short = talib.EMA(prices, timeperiod=self.ema1_period)
-        ema_long = talib.EMA(prices, timeperiod=self.ema2_period)
 
-        # ema_short = self.calculate_ema_(prices, self.ema1_period)
-        # ema_long = self.calculate_ema_(prices, self.ema2_period)
+        ema_short = self.calculate_ema(prices, self.ema1_period)
+        ema_long = self.calculate_ema(prices, self.ema2_period)
 
         # Проверяем последние два значения EMA
         current_short_ema = ema_short[-1]
@@ -39,11 +40,11 @@ class INDICATORS_STRATEGYY(BINANCE_API):
         previous_long_ema = ema_long[-2]
 
         # Проверяем пересечение вверх
-        if previous_short_ema < previous_long_ema and current_short_ema > current_long_ema:
+        if previous_short_ema < previous_long_ema and current_short_ema >= current_long_ema:
             return 1  # Signal for buy
 
         # Проверяем пересечение вниз
-        if previous_short_ema > previous_long_ema and current_short_ema < current_long_ema:
+        if previous_short_ema > previous_long_ema and current_short_ema <= current_long_ema:
             return -1  # Signal for sell
 
         return 0  # No cross    

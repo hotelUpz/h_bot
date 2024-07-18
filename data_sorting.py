@@ -1,15 +1,15 @@
 import numpy as np
 from utils import UTILS
 
-class SORT_DATA(UTILS):
+class REFACT_DATA(UTILS):
     def __init__(self) -> None:
         super().__init__()
         self.klines_historical_lim = self.ema1_period + self.ema2_period
         self.symbol_item_creator = self.log_exceptions_decorator(self.symbol_item_creator)
         self.symbol_data_reprocessing = self.log_exceptions_decorator(self.symbol_data_reprocessing)
-        self.process_kline_data = self.log_exceptions_decorator(self.process_kline_data)
+        self.process_trading_data = self.log_exceptions_decorator(self.process_trading_data)
         self.process_historical_klines = self.log_exceptions_decorator(self.process_historical_klines)
-        self.fetch_and_process_symbol = self.log_exceptions_decorator(self.fetch_and_process_symbol)
+        self.fetch_and_process_symbol = self.log_exceptions_decorator(self.fetch_and_process_symbol)        
 
     def symbol_item_creator(self, symbol, current_close, ema_cross):
         signal_data = {
@@ -36,7 +36,7 @@ class SORT_DATA(UTILS):
         }
         self.trading_data_init_list.append(signal_data)
      
-    def symbol_data_reprocessing(self, symbol, signal, cur_price):
+    def symbol_data_reprocessing(self, symbol, cur_price, signal=None):
         for i, symbol_item in enumerate(self.trading_data_list):
             if symbol_item["symbol"] == symbol:
                 try:
@@ -49,28 +49,18 @@ class SORT_DATA(UTILS):
                 except Exception as ex:
                     print(ex)
 
-    async def process_kline_data(self, kline_data, recent_klines, symbol, is_kline_closed):
-        close_price = float(kline_data['c'])
-        if is_kline_closed:
-            open_time = kline_data['t']
-            open_price = float(kline_data['o'])
-            high_price = float(kline_data['h'])
-            low_price = float(kline_data['l'])
-            volume = float(kline_data['v'])
-            recent_klines.append([open_time, open_price, high_price, low_price, close_price, volume])
-
-            if len(recent_klines) > self.ema2_period:
-                recent_klines.pop(0)
-            if len(recent_klines) >= self.ema2_period:
-                close_prices = np.array([float(kline[4]) for kline in recent_klines], dtype=np.float64)
-                ema_cross = await self.find_last_ema_cross(close_prices)
-                current_close = close_prices[-1]                
-                async with self.lock:
-                    self.minute_counter += 1
-                    self.symbol_data_reprocessing(symbol, ema_cross, current_close)
+    async def process_trading_data(self, wb_kline_data, symbol, is_kline_closed_true):        
+        close_wb_price = float(wb_kline_data['c'])
+        if not is_kline_closed_true:
+            self.symbol_data_reprocessing(symbol, close_wb_price)
         else:
-            # async with self.lock:
-            self.symbol_data_reprocessing(symbol, None, close_price)
+            print("is_kline_closed")
+            async with self.lock:                
+                close_prices_2 = await self.get_close_prices(symbol, self.interval, self.klines_historical_lim)
+                ema_cross_2 = await self.find_last_ema_cross(close_prices_2)
+                # print(f"close_prices_klines: {close_prices_2}")                    
+                # print(f"ema_cross_klines: {ema_cross_2}")
+                self.symbol_data_reprocessing(symbol, close_wb_price, ema_cross_2)
 
     async def process_historical_klines(self, recent_klines, symbol):
         if len(recent_klines) >= self.ema2_period:
@@ -78,12 +68,12 @@ class SORT_DATA(UTILS):
             ema_cross = await self.find_last_ema_cross(close_prices)
             current_close = close_prices[-1]
             ema_cross = ema_cross * self.is_reverse_signal
-            if (self.only_long_trading and ema_cross == -1) or (self.only_short_trading and ema_cross == 1):
-                return
             if ema_cross:
-                self.symbol_item_creator(symbol, current_close, ema_cross)
+                if not ((self.only_long_trading and ema_cross == -1) or (self.only_short_trading and ema_cross == 1)):
+                    self.symbol_item_creator(symbol, current_close, ema_cross)
 
     async def fetch_and_process_symbol(self, session, symbol, recent_klines_dict):
         recent_klines = await self.get_klines(session, symbol, self.interval, self.klines_historical_lim)
         recent_klines_dict[symbol] = recent_klines.tolist()
         await self.process_historical_klines(recent_klines_dict[symbol], symbol)
+

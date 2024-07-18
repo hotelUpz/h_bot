@@ -13,7 +13,7 @@ class RULESS(VARIABLES):
                         # print(f'in_position {pos_num}: {symbol_item[f"in_position_{pos_num}"]}')
                         continue
                     hedg_num = 2 if pos_num == 1 else 1
-                    enter_pos_price = float(symbol_item.get(f"enter_{pos_num}_pos_price"))
+                    enter_pos_price = symbol_item.get(f"enter_{pos_num}_pos_price")
                     if not isinstance(enter_pos_price, float):
                         continue
 
@@ -25,15 +25,17 @@ class RULESS(VARIABLES):
                     # print(f"change_price_ratio: {change_price_ratio}")
 
                     if position_side == "LONG":
-                        if signal == 1:
-                            print("signal == 1 was skiped")
-                            continue
+                        if self.strong_opposite_signal_flag:
+                            if signal == 1:
+                                print("signal == 1 was skiped")
+                                continue
                         if cur_price < enter_pos_price:
                             change_price_ratio = -change_price_ratio
                     elif position_side == "SHORT":
-                        if signal == -1:
-                            print("signal == -1 was skiped")
-                            continue
+                        if self.strong_opposite_signal_flag:
+                            if signal == -1:
+                                print("signal == -1 was skiped")
+                                continue
                         if cur_price > enter_pos_price:
                             change_price_ratio = -change_price_ratio
 
@@ -44,18 +46,22 @@ class RULESS(VARIABLES):
                             tp_condition = not self.only_stop_loss_flag and change_price_ratio > 0 and change_price_ratio >= symbol_item.get("tp_pos_rate")
 
                             if tp_condition or sl_condition:
-                                print(f"Triggered closing position {pos_num} due to price for {symbol_item.get('symbol')}.")
+                                # print(f"Triggered closing position {pos_num} due to price for {symbol_item.get('symbol')}.")
+                                print(f'Сработал тригер цены на закрытие {pos_num} позиции для {symbol_item.get("symbol")}')
                                 instruction_list.append(("closing", pos_num))
                     else:
                         print("signallll")
                         # Check if we should close the position due to signal
                         if change_price_ratio >= symbol_item.get("min_deviation_rate"):
-                            print(f"Triggered closing position {pos_num} due to signal for {symbol_item.get('symbol')}.")
+                            # print(f"Triggered closing position {pos_num} due to signal for {symbol_item.get('symbol')}.")
+                            print(f'Поступил сигнал на закрытие {pos_num} позиции для {symbol_item.get("symbol")}')
                             instruction_list.append(("closing", pos_num))
                             continue
                         if not is_two_pos_now:
-                            print('change_price_ratio <= symbol_item.get("min_deviation_rate")')
+                            print(f'Хеджируемся. Символ: {symbol_item.get("symbol")}')
                             instruction_list.append(("opening", hedg_num))
+                        else:
+                            print("Сигнал проигнорирован из-за несоответствия минимальному спреду для закрытия")
 
                 return instruction_list
 

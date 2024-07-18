@@ -38,7 +38,8 @@ class VARIABLES(SEC_SETTINGSS):
         self.check_finish_flag = False
         self.check_finish_tik_counter = 0
         self.strategy_engin_tik_counter = 0
-        self.minute_counter = 0
-        self.any_moving = False
+        self.first_init_flag = True
+        self.start_time = 0
+        self.start_time_2 = 0
         self.lock = asyncio.Lock()
         self.next_trading_cycle_event = asyncio.Event()
