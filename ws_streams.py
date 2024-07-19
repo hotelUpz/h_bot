@@ -22,7 +22,7 @@ class WS_STREAMS(REFACT_DATA):
         print("connect_to_websocket")
         self.start_time = time.time() 
         self.start_time_2 = self.start_time
-        print(f"self.start_time: {self.start_time}")
+        # print(f"self.start_time: {self.start_time}")
         stream_chunks = [symbols[i:i + 100] for i in range(0, len(symbols), 100)]
         is_wb_finish = False
 

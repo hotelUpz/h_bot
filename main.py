@@ -174,6 +174,8 @@ class MAIN(FirstInitExecutor):
          # self.main_engin = self.log_exceptions_decorator(self.main_engin)
 
     async def main(self):
+        print(f"{self.my_name}, приветуствую вас!")
+        print(f"<<Благодать Господа нашего Иисуса Христа, и любовь Бога Отца, и общение Святаго Духа со всеми вами. Аминь.>>\n___(2-е Коринфянам 13:13)___")
         self.handle_messagee("Устанавливаем режим хеджирования:")
         set_hedge_mode_answ = self.set_hedge_mode(self.hedge_mode)
         self.handle_messagee(str(set_hedge_mode_answ))

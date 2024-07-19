@@ -54,7 +54,7 @@ class REFACT_DATA(UTILS):
         if not is_kline_closed_true:
             self.symbol_data_reprocessing(symbol, close_wb_price)
         else:
-            print("is_kline_closed")
+            # print("is_kline_closed")
             async with self.lock:                
                 close_prices_2 = await self.get_close_prices(symbol, self.interval, self.klines_historical_lim)
                 ema_cross_2 = await self.find_last_ema_cross(close_prices_2)

@@ -7,14 +7,12 @@ class SEC_SETTINGSS(SETTINGSS):
         super().__init__()
         self.my_name = 'Николай' # Ваше имя
         # self.my_name = 'Денис' # Ваше имя
-        self.veryf_attemts_number = 9 # количество попыток доступа в ваш тг бот после неверно введенного пароля
-        self.show_statistic_hour = 21 # время показа дневной статистики (21 - в 9 часов вечера каждого дня)
         self.local_tz = pytz.timezone('Europe/Kiev') # 'Europe/Berlin' -- часовой пояс
         # self.local_tz = pytz.timezone('Europe/Berlin') # 'Europe/Kiev' -- часовой пояс
 
         # //////////////////////////// НАСТРОЙКИ ФИЛЬТРА МОНЕТ:
-        # self.default_black_coins_list = self.black_coins_list = ['USDCUSDT','FDUSDUSDT','BTCUSDT', 'ETHUSDT', 'ETCUSDT', 'NEARUSDT', 'SOLUSDT', 'LTCUSDT', 'BCHUSDT', 'LINKUSDT', 'RUNEUSDT'] # монеты исключения
-        self.default_black_coins_list = self.black_coins_list = []
+        self.default_black_coins_list = self.black_coins_list = ['USDCUSDT','FDUSDUSDT','BTCUSDT', 'ETHUSDT', 'ETCUSDT', 'NEARUSDT', 'SOLUSDT', 'LTCUSDT', 'BCHUSDT', 'LINKUSDT', 'RUNEUSDT'] # монеты исключения
+        # self.default_black_coins_list = self.black_coins_list = []
         self.price_filter_flag = 0 # фильтр по цене. Сейчас отключен. Включить/выкл: - 1/0
         self.MIN_FILTER_PRICE = 0 # минимальный порог цены. Можете указать свое значение.
         self.MAX_FILTER_PRICE = math.inf # максимальный порог цены. Можете указать свое значение.
