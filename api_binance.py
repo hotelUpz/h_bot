@@ -3,8 +3,8 @@ import hmac
 import hashlib
 import requests
 import aiohttp
+import pandas as pd
 from functools import wraps
-import numpy as np
 import os
 from log import Total_Logger
 current_file = os.path.basename(__file__)
@@ -63,29 +63,30 @@ class BINANCE_API(Total_Logger):
         async with session.get(self.all_tikers_url, params=params) as response:
             data = await response.json()
         return data
-       
+    
     async def get_klines(self, session, symbol, interval, limit):
+        klines = None       
+        params = {}
+        params["symbol"] = symbol
+        params['recvWindow'] = 20000
+        params["interval"] = interval
+        params["limit"] = limit
+        params = self.get_signature(params)
 
-        params = {
-            'symbol': symbol,
-            'interval': interval,
-            'limit': limit
-        }
         async with session.get(self.klines_url, params=params) as response:
-            data = await response.json()
-            return np.array([[
-                float(entry[0]),  # Open time
-                float(entry[1]),  # Open
-                float(entry[2]),  # High
-                float(entry[3]),  # Low
-                float(entry[4]),  # Close
-                float(entry[5])  # Volume
-            ] for entry in data])
+            klines = await response.json()
+
+        if klines:
+            data = pd.DataFrame(klines).iloc[:, :6]
+            data.columns = ['Time', 'Open', 'High', 'Low', 'Close', 'Volume']
+            data = data.set_index('Time')
+            data.index = pd.to_datetime(data.index, unit='ms')
+            return data.astype(float)        
+        return
 
     @aiohttp_connector
-    async def get_close_prices(self, session, symbol, interval, limit):
-        klines = await self.get_klines(session, symbol, interval, limit)
-        return np.array([float(kline[4]) for kline in klines], dtype=np.float64)
+    async def get_klines_connector(self, session, symbol, interval, limit):
+        return await self.get_klines(session, symbol, interval, limit)        
               
     async def is_closing_position_true(self, session, symbol, position_side):
         params = {

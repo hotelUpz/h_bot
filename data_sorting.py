@@ -1,4 +1,3 @@
-import numpy as np
 from utils import UTILS
 
 class REFACT_DATA(UTILS):
@@ -56,21 +55,18 @@ class REFACT_DATA(UTILS):
         else:
             # print("is_kline_closed")
             async with self.lock:                
-                close_prices_2 = await self.get_close_prices(symbol, self.interval, self.klines_historical_lim)
-                ema_cross_2 = self.find_last_ema_cross(close_prices_2)
+                data = await self.get_klines_connector(symbol, self.interval, self.klines_historical_lim)
+                ema_cross_2 = self.find_last_ema_cross(data)
                 self.symbol_data_reprocessing(symbol, close_wb_price, ema_cross_2)
 
     def process_historical_klines(self, recent_klines, symbol):
-        if len(recent_klines) >= self.ema2_period:
-            close_prices = np.array([float(kline[4]) for kline in recent_klines], dtype=np.float64)
-            ema_cross = self.find_last_ema_cross(close_prices)
-            current_close = close_prices[-1]
-            ema_cross = ema_cross * self.is_reverse_signal
-            if ema_cross:
-                if not ((self.only_long_trading and ema_cross == -1) or (self.only_short_trading and ema_cross == 1)):
-                    self.symbol_item_creator(symbol, current_close, ema_cross)
+        ema_cross = self.find_last_ema_cross(recent_klines)
+        current_close = recent_klines.get("Close").iloc[-1]
+        ema_cross = ema_cross * self.is_reverse_signal
+        if ema_cross:
+            if not ((self.only_long_trading and ema_cross == -1) or (self.only_short_trading and ema_cross == 1)):
+                self.symbol_item_creator(symbol, current_close, ema_cross)
 
     async def fetch_and_process_symbol(self, session, symbol, recent_klines_dict):
-        recent_klines = await self.get_klines(session, symbol, self.interval, self.klines_historical_lim)
-        recent_klines_dict[symbol] = recent_klines.tolist()
+        recent_klines_dict[symbol] = await self.get_klines(session, symbol, self.interval, self.klines_historical_lim)
         self.process_historical_klines(recent_klines_dict[symbol], symbol)

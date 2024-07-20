@@ -1,5 +1,4 @@
-import talib
-# import numpy as np
+import pandas_ta as ta
 from datetime import datetime as dttm
 from api_binance import BINANCE_API, aiohttp_connector
 import math
@@ -14,36 +13,23 @@ class INDICATORS_STRATEGYY(BINANCE_API):
         self.calculate_ema = self.log_exceptions_decorator(self.calculate_ema)
         self.find_last_ema_cross = self.log_exceptions_decorator(self.find_last_ema_cross)
         self.time_signal_info = self.log_exceptions_decorator(self.time_signal_info)
+
+    def calculate_ema(self, data):
+        data[f"EMA{self.ema1_period}"] = ta.ema(data['Close'], length=self.ema1_period)
+        data[f"EMA{self.ema2_period}"] = ta.ema(data['Close'], length=self.ema2_period)       
+        data.dropna(inplace=True)
+        return data
+    
+    def find_last_ema_cross(self, data):
+        df = self.calculate_ema(data)
+
+        if (df[f"EMA{self.ema1_period}"].iloc[-1] > df[f"EMA{self.ema2_period}"].iloc[-1]) and (df[f"EMA{self.ema1_period}"].iloc[-2] < df[f"EMA{self.ema2_period}"].iloc[-2]):
+            return 1         
+                
+        elif (df[f"EMA{self.ema1_period}"].iloc[-1] < df[f"EMA{self.ema2_period}"].iloc[-1]) and (df[f"EMA{self.ema1_period}"].iloc[-2] > df[f"EMA{self.ema2_period}"].iloc[-2]):
+            return -1
         
-    # def calculate_ema(self, close_prices, period):
-    #     ema = np.zeros_like(close_prices)
-    #     alpha = self.ema_weighting_rate / (period + 1)
-    #     ema[0] = close_prices[0]
-    #     for i in range(1, len(close_prices)):
-    #         ema[i] = alpha * close_prices[i] + (1 - alpha) * ema[i-1]
-    #     return ema
-
-    def calculate_ema(self, close_prices, period):
-        return talib.EMA(close_prices, timeperiod=period) 
-
-    def find_last_ema_cross(self, prices):
-        ema_short = self.calculate_ema(prices, self.ema1_period)
-        ema_long = self.calculate_ema(prices, self.ema2_period)
-
-        current_short_ema = ema_short[-1]
-        current_long_ema = ema_long[-1]
-        previous_short_ema = ema_short[-2]
-        previous_long_ema = ema_long[-2]
-
-        # Проверяем пересечение вверх
-        if previous_short_ema < previous_long_ema and current_short_ema >= current_long_ema:
-            return 1  # Signal for buy
-
-        # Проверяем пересечение вниз
-        elif previous_short_ema > previous_long_ema and current_short_ema <= current_long_ema:
-            return -1  # Signal for sell
-
-        return 0  # No cross 
+        return 0
     
     def time_signal_info(self, signal, symbol, cur_price):
         now_time = dttm.now(self.local_tz)
