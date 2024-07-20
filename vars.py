@@ -10,11 +10,6 @@ class VARIABLES(SEC_SETTINGSS):
         self.api_secret = BINANCE_API_PRIVATE_KEY 
         # print(self.api_key)
         self.coinMarketCup_api_token = COIN_MARKET_CUP_TOKEN
-        self.proxy_host = proxy_host
-        self.proxy_port = proxy_port
-        self.proxy_socks5_port = proxy_socks5_port
-        self.proxy_username = proxy_username
-        self.proxy_password = proxy_password
         # ///////////////////////////////////////
         self.init_and_reset_data()
 
@@ -40,6 +35,6 @@ class VARIABLES(SEC_SETTINGSS):
         self.strategy_engin_tik_counter = 0
         self.first_init_flag = True
         self.start_time = 0
-        self.start_time_2 = 0
+        self.ema_weighting_rate = 2
         self.lock = asyncio.Lock()
         self.next_trading_cycle_event = asyncio.Event()

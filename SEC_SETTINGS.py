@@ -5,10 +5,9 @@ from SETTINGS import SETTINGSS
 class SEC_SETTINGSS(SETTINGSS):
     def __init__(self) -> None:
         super().__init__()
-        self.my_name = 'Николай' # Ваше имя
-        # self.my_name = 'Денис' # Ваше имя
-        self.local_tz = pytz.timezone('Europe/Kiev') # 'Europe/Berlin' -- часовой пояс
-        # self.local_tz = pytz.timezone('Europe/Berlin') # 'Europe/Kiev' -- часовой пояс
+        self.my_name = 'Денис' # Ваше имя        
+        self.local_tz = pytz.timezone('Europe/Berlin') # 'Europe/Kiev' -- часовой пояс
+        # self.local_tz = pytz.timezone('Europe/Kiev') # 'Europe/Berlin' -- часовой пояс
 
         # //////////////////////////// НАСТРОЙКИ ФИЛЬТРА МОНЕТ:
         self.default_black_coins_list = self.black_coins_list = ['USDCUSDT','FDUSDUSDT','BTCUSDT', 'ETHUSDT', 'ETCUSDT', 'NEARUSDT', 'SOLUSDT', 'LTCUSDT', 'BCHUSDT', 'LINKUSDT', 'RUNEUSDT'] # монеты исключения

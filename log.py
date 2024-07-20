@@ -8,8 +8,6 @@ class Total_Logger(RULESS):
 
     def handle_messagee(self, textt):
         print(textt)
-        # if self.last_message:
-        #     self.last_message.text = self.connector_func(self.last_message, textt)
 
     def handle_exception(self, error_message):  
         self.handle_messagee(error_message)
@@ -20,7 +18,6 @@ class Total_Logger(RULESS):
             try:
                 return func(*args, **kwargs)
             except Exception as ex:
-                # timestamp = datetime.utcnow()
                 current_frame = inspect.currentframe()
                 caller_frame = current_frame.f_back
                 file_name = caller_frame.f_code.co_filename

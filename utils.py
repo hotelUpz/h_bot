@@ -58,4 +58,3 @@ class UTILS(COInN_FILTERR):
             depo = min_notional  # Используем минимальный нотионал если депозит меньше его
         quantity = round(depo / cur_price, quantity_precision)
         return quantity
-

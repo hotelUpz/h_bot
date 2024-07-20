@@ -3,4 +3,3 @@ websockets
 aiohttp
 numpy
 pytz
-# talib

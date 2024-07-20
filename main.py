@@ -3,7 +3,6 @@ from templates import TEMP
 from api_binance import aiohttp_connector
 import time
 import os
-import inspect
 current_file = os.path.basename(__file__)
 
 class WaitCandleLogic(TEMP):
@@ -28,7 +27,7 @@ class WaitCandleLogic(TEMP):
 
         else:
             wait_time = self.time_calibrator(1, 'm')
-        print(f"wait_time: {wait_time} sec")
+        # print(f"wait_time: {wait_time} sec")
         await asyncio.sleep(wait_time)
 
     def handle_wait_for_candle(self):
@@ -62,7 +61,7 @@ class TrigersHundler(WaitCandleLogic):
             self.check_finish_flag = False
             self.check_finish_tik_counter = 0
             if self.minute_counter_limit is not None:               
-                if time.time() - self.start_time_2 >= self.minute_counter_limit: 
+                if time.time() - self.start_time >= self.minute_counter_limit: 
                     any_closing_flag = False      
                     for i, symb_item in enumerate(self.trading_data_list):                        
                         if symb_item.get("in_position_1") and symb_item.get("in_position_2"):
@@ -85,7 +84,6 @@ class TrigersHundler(WaitCandleLogic):
                     print("Вебсокет соединение закрыто")
                 except asyncio.TimeoutError:
                     print("Не удается закрыть вебсокет в течение заданного времени")                
-                # self.next_trading_cycle_event.clear()  # Сбрасываем событие
                 self.init_and_reset_data()  # Инициализируем и сбрасываем данные
                 print("конец первой торговой итерации")
                 return True 
@@ -106,8 +104,9 @@ class TrigersHundler(WaitCandleLogic):
                         is_any_opening = True
                         self.trading_data_list[i][f"is_opening_{pos_num}_pos"] = True
 
-        if is_any_close_pos or is_any_opening:        
-            await self.make_orders_total_template()           
+        if is_any_close_pos or is_any_opening:       
+            await self.make_orders_total_template()
+            self.start_time = time.time()         
             return True
         if self.is_get_new_signal:
             self.is_get_new_signal = False
@@ -130,8 +129,7 @@ class FirstInitExecutor(TrigersHundler):
         self.first_trading_template = self.log_exceptions_decorator(self.first_trading_template)
 
     async def signals_elaboration(self):
-        if self.trading_data_init_list:
-            # print(f"total_init_signal_counter: {len(self.trading_data_init_list)}")            
+        if self.trading_data_init_list:         
             [self.time_signal_info(item["signal"], item["symbol"], item["cur_price"]) for item in self.trading_data_init_list]
 
             trading_data_acum_list = []
@@ -159,7 +157,6 @@ class FirstInitExecutor(TrigersHundler):
     @aiohttp_connector
     async def signals_collector(self, session):
         self.trading_data_init_list = []
-        # self.recent_klines_dict = {}
         await self.wait_for_candle_or_coins(session)
         tasks = [self.fetch_and_process_symbol(session, symbol, {}) for symbol in self.candidate_symbols_list]
         await asyncio.gather(*tasks)
@@ -190,16 +187,14 @@ class MAIN(FirstInitExecutor):
                 self.first_init_flag = False
                 self.next_trading_cycle = False
                 self.wb_task_true = True
-                print(self.trading_data_list)
+                # print(self.trading_data_list)
 
             if self.wb_task_true:
                 self.wb_task_true = False
-                symbols = [x.get("symbol") for x in self.trading_data_list]
-                # self.recent_klines_dict = {k: v for k, v in self.recent_klines_dict.items() if k in symbols}             
+                symbols = [x.get("symbol") for x in self.trading_data_list]          
                 self.wb_task = [self.connect_to_websocket(symbols)]
                 self.wb_completed_task = asyncio.gather(*self.wb_task)
-            
-            # print("tik")
+
             await asyncio.sleep(1)
             self.next_trading_cycle = await self.close_pos_viewer()
         

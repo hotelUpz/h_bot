@@ -155,7 +155,7 @@ class TEMP(WS_STREAMS):
 
         # Проверка на закрытие всех позиций
         if len(self.trading_data_list) == 0:
-            print('Все позиции закрыты технически')
+            print('Все позиции закрыты')
             return True
 
         not_active_symbol_list = []
@@ -181,5 +181,3 @@ class TEMP(WS_STREAMS):
         self.trading_data_list = [symbol_item for symbol_item in self.trading_data_list if symbol_item.get("in_position_1") or symbol_item.get("in_position_2")]
 
         return False
-
-

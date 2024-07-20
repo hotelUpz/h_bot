@@ -6,7 +6,6 @@ import aiohttp
 from functools import wraps
 import numpy as np
 import os
-import inspect
 from log import Total_Logger
 current_file = os.path.basename(__file__)
 
@@ -35,15 +34,7 @@ class BINANCE_API(Total_Logger):
         self.headers = {
             'X-MBX-APIKEY': self.api_key
         }
-        
-        # if self.is_proxies_true:
-        #     self.proxy_url = f'http://{self.proxy_username}:{self.proxy_password}@{self.proxy_host}:{self.proxy_port}'
-        #     self.proxies = {
-        #         'http': self.proxy_url,
-        #         'https': self.proxy_url
-        #     }
-        # else:
-        #     self.proxies = None
+
         self.get_exchange_info = self.log_exceptions_decorator(self.get_exchange_info)
         self.get_all_tickers = self.log_exceptions_decorator(self.get_all_tickers)
         self.get_klines = self.log_exceptions_decorator(self.get_klines)

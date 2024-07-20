@@ -57,15 +57,13 @@ class REFACT_DATA(UTILS):
             # print("is_kline_closed")
             async with self.lock:                
                 close_prices_2 = await self.get_close_prices(symbol, self.interval, self.klines_historical_lim)
-                ema_cross_2 = await self.find_last_ema_cross(close_prices_2)
-                # print(f"close_prices_klines: {close_prices_2}")                    
-                # print(f"ema_cross_klines: {ema_cross_2}")
+                ema_cross_2 = self.find_last_ema_cross(close_prices_2)
                 self.symbol_data_reprocessing(symbol, close_wb_price, ema_cross_2)
 
-    async def process_historical_klines(self, recent_klines, symbol):
+    def process_historical_klines(self, recent_klines, symbol):
         if len(recent_klines) >= self.ema2_period:
             close_prices = np.array([float(kline[4]) for kline in recent_klines], dtype=np.float64)
-            ema_cross = await self.find_last_ema_cross(close_prices)
+            ema_cross = self.find_last_ema_cross(close_prices)
             current_close = close_prices[-1]
             ema_cross = ema_cross * self.is_reverse_signal
             if ema_cross:
@@ -75,5 +73,4 @@ class REFACT_DATA(UTILS):
     async def fetch_and_process_symbol(self, session, symbol, recent_klines_dict):
         recent_klines = await self.get_klines(session, symbol, self.interval, self.klines_historical_lim)
         recent_klines_dict[symbol] = recent_klines.tolist()
-        await self.process_historical_klines(recent_klines_dict[symbol], symbol)
-
+        self.process_historical_klines(recent_klines_dict[symbol], symbol)
